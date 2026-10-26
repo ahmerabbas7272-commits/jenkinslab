@@ -1,0 +1,42 @@
+---
+- name: Automate Laravel Kubernetes Deployment
+  hosts: local
+  become: yes
+
+  tasks:
+
+    - name: Deploy MySQL
+      command: k3s kubectl apply -f {{ playbook_dir }}/kubernetes/mysql.yaml
+      register: mysql_result
+      changed_when: "'created' in mysql_result.stdout or 'configured' in mysql_result.stdout"
+
+    - name: Wait for MySQL
+      command: k3s kubectl rollout status deployment/mysql -n devops-lab --timeout=180s
+      changed_when: false
+
+    - name: Deploy Laravel
+      command: k3s kubectl apply -f {{ playbook_dir }}/kubernetes/laravel.yaml
+      register: laravel_result
+      changed_when: "'created' in laravel_result.stdout or 'configured' in laravel_result.stdout"
+
+    - name: Wait for Laravel
+      command: k3s kubectl rollout status deployment/laravel -n devops-lab --timeout=300s
+      changed_when: false
+
+    - name: Verify Pods
+      command: k3s kubectl get pods -n devops-lab
+      register: pods
+      changed_when: false
+
+    - name: Display Pods
+      debug:
+        var: pods.stdout_lines
+
+    - name: Verify Services
+      command: k3s kubectl get svc -n devops-lab
+      register: services
+      changed_when: false
+
+    - name: Display Services
+      debug:
+        var: services.stdout_lines
